@@ -1,3 +1,6 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { getDashboardData } from "@/actions/admin";
 import { Dashboard } from "./_components/dashboard";
 
