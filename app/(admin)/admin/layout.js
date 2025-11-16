@@ -1,3 +1,7 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+
 import { getAdmin } from '@/actions/admin'
 import Header from '@/components/header';
 import Sidebar from './_components/sidebar';
