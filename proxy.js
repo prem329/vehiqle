@@ -10,7 +10,7 @@ export const config = {
   ],
 };
 
-export default function middleware(req) {
+export default function proxy(req) {
   // lightweight presence check — detects any session cookie
   // NOTE: this only checks for cookie presence, not token validity.
   const cookies = req.headers.get("cookie") || "";
