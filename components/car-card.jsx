@@ -101,7 +101,7 @@ export const CarCard = ({ car }) => {
             {car.make} {car.model}
           </h3>
           <span className="text-xl font-bold text-blue-600">
-            ${car.price.toLocaleString()}
+            ₹{car.price.toLocaleString()}
           </span>
         </div>
 

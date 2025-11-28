@@ -14,6 +14,7 @@ export async function bookTestDrive({
   startTime,
   endTime,
   notes,
+  phoneNumber, // <-- added
 }) {
   try {
     // Authenticate user
@@ -26,6 +27,11 @@ export async function bookTestDrive({
     });
 
     if (!user) throw new Error("User not found in database");
+
+    // Validate phone number (simple server-side check)
+    if (!phoneNumber || !/^\+?[0-9]{10,15}$/.test(phoneNumber)) {
+      throw new Error("Please provide a valid phone number (10-15 digits).");
+    }
 
     // Check if car exists and is available
     const car = await db.car.findUnique({
@@ -50,7 +56,7 @@ export async function bookTestDrive({
       );
     }
 
-    // Create the booking
+    // Create the booking — include phoneNumber
     const booking = await db.testDriveBooking.create({
       data: {
         carId,
@@ -58,6 +64,7 @@ export async function bookTestDrive({
         bookingDate: new Date(bookingDate),
         startTime,
         endTime,
+        phoneNumber,        // <-- saved here
         notes: notes || null,
         status: "PENDING",
       },
@@ -79,7 +86,6 @@ export async function bookTestDrive({
     };
   }
 }
-
 /**
  * Get user's test drive bookings - reservations page
  */
@@ -122,6 +128,7 @@ export async function getUserTestDrives() {
       bookingDate: booking.bookingDate.toISOString(),
       startTime: booking.startTime,
       endTime: booking.endTime,
+      phoneNumber: booking.phoneNumber,
       status: booking.status,
       notes: booking.notes,
       createdAt: booking.createdAt.toISOString(),

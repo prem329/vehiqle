@@ -58,10 +58,10 @@ export async function getCarFilters() {
         transmissions: transmissions.map((item) => item.transmission),
         priceRange: {
           min: priceAggregations._min.price
-            ? parseFloat(priceAggregations._min.price.toString())
+            ? parseFloat(priceAggregations._min.price.toLocaleString("en-IN"))
             : 0,
           max: priceAggregations._max.price
-            ? parseFloat(priceAggregations._max.price.toString())
+            ? parseFloat(priceAggregations._max.price.toLocaleString("en-IN"))
             : 100000,
         },
       },

@@ -48,6 +48,12 @@ const testDriveSchema = z.object({
   timeSlot: z.string({
     required_error: "Please select a time slot",
   }),
+  phoneNumber: z
+    .string()
+    .min(10, "Phone number must be at least 10 digits")
+    .max(15, "Phone number seems too long")
+    .regex(/^\+?[0-9]{10,15}$/, "Enter a valid phone number")
+    .describe("User phone number"),
   notes: z.string().optional(),
 });
 
@@ -70,6 +76,7 @@ export function TestDriveForm({ car, testDriveInfo }) {
     defaultValues: {
       date: undefined,
       timeSlot: undefined,
+      phoneNumber: "",
       notes: "",
     },
   });
@@ -191,23 +198,25 @@ export function TestDriveForm({ car, testDriveInfo }) {
 
   // Submit handler
   const onSubmit = async (data) => {
-    const selectedSlot = availableTimeSlots.find(
-      (slot) => slot.id === data.timeSlot
-    );
+  const selectedSlot = availableTimeSlots.find(
+    (slot) => slot.id === data.timeSlot
+  );
 
-    if (!selectedSlot) {
-      toast.error("Selected time slot is not available");
-      return;
-    }
+  if (!selectedSlot) {
+    toast.error("Selected time slot is not available");
+    return;
+  }
 
-    await bookTestDriveFn({
-      carId: car.id,
-      bookingDate: format(data.date, "yyyy-MM-dd"),
-      startTime: selectedSlot.startTime,
-      endTime: selectedSlot.endTime,
-      notes: data.notes || "",
-    });
-  };
+  await bookTestDriveFn({
+    carId: car.id,
+    bookingDate: format(data.date, "yyyy-MM-dd"),
+    startTime: selectedSlot.startTime,
+    endTime: selectedSlot.endTime,
+    notes: data.notes || "",
+    phoneNumber: data.phoneNumber, // <-- pass phoneNumber
+  });
+};
+
 
   // Close confirmation handler
   const handleCloseConfirmation = () => {
@@ -387,6 +396,32 @@ export function TestDriveForm({ car, testDriveInfo }) {
                       {errors.timeSlot && (
                         <p className="text-sm font-medium text-red-500 mt-1">
                           {errors.timeSlot.message}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                />
+              </div>
+
+              {/* Phone Number */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">
+                  Phone Number
+                </label>
+                <Controller
+                  name="phoneNumber"
+                  control={control}
+                  render={({ field }) => (
+                    <div>
+                      <input
+                        {...field}
+                        type="tel"
+                        placeholder="+919876543210 or 9876543210"
+                        className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
+                      {errors.phoneNumber && (
+                        <p className="text-sm font-medium text-red-500 mt-1">
+                          {errors.phoneNumber.message}
                         </p>
                       )}
                     </div>

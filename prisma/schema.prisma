@@ -131,6 +131,7 @@ model TestDriveBooking {
   bookingDate   DateTime      @db.Date
   startTime     String        // Format: "HH:MM" (24-hour)
   endTime       String        // Format: "HH:MM" (24-hour)
+  phoneNumber   String
   status        BookingStatus @default(PENDING)
   notes         String?
   createdAt     DateTime      @default(now())

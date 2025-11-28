@@ -4,6 +4,13 @@ import { Check, X } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 
+const formatINR = (value) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value);
+
 export const CarFilterControls = ({
   filters,
   currentFilters,
@@ -52,6 +59,13 @@ export const CarFilterControls = ({
       <div className="space-y-4">
         <h3 className="font-medium">Price Range</h3>
         <div className="px-2">
+          {/* Price labels */}
+          <div className="flex justify-between text-sm font-medium mb-1">
+            <span>{formatINR(priceRange[0])}</span>
+            <span>{formatINR(priceRange[1])}</span>
+          </div>
+
+          {/* The slider */}
           <Slider
             min={filters.priceRange.min}
             max={filters.priceRange.max}
@@ -60,6 +74,7 @@ export const CarFilterControls = ({
             onValueChange={(value) => onFilterChange("priceRange", value)}
           />
         </div>
+
         <div className="flex items-center justify-between">
           <div className="font-medium text-sm">$ {priceRange[0]}</div>
           <div className="font-medium text-sm">$ {priceRange[1]}</div>
