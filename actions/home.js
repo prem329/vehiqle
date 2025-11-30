@@ -2,8 +2,9 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db } from "@/lib/prisma";
-import aj from "@/lib/arcjet";
-import { request } from "@arcjet/next";
+// Arcjet removed
+// import aj from "@/lib/arcjet";
+// import { request } from "@arcjet/next";
 
 // Function to serialize car data
 function serializeCarData(car) {
@@ -44,33 +45,16 @@ async function fileToBase64(file) {
 
 /**
  * Process car image with Gemini AI
+ *
+ * Note: Arcjet protection removed. If you need rate-limiting or bot protection,
+ * implement it in an API route or middleware (not here) to avoid bundling heavy libs
+ * into your edge/server code.
  */
 export async function processImageSearch(file) {
   try {
-    // Get request data for ArcJet
-    const req = await request();
-
-    // Check rate limit
-    const decision = await aj.protect(req, {
-      requested: 1, // Specify how many tokens to consume
-    });
-
-    if (decision.isDenied()) {
-      if (decision.reason.isRateLimit()) {
-        const { remaining, reset } = decision.reason;
-        console.error({
-          code: "RATE_LIMIT_EXCEEDED",
-          details: {
-            remaining,
-            resetInSeconds: reset,
-          },
-        });
-
-        throw new Error("Too many requests. Please try again later.");
-      }
-
-      throw new Error("Request blocked");
-    }
+    // ----- ARCJET REMOVED -----
+    // If you previously used Arcjet to rate-limit / block requests, implement
+    // a replacement here (recommended approaches below). For now we proceed.
 
     // Check if API key is available
     if (!process.env.GEMINI_API_KEY) {
