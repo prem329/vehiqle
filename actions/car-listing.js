@@ -286,8 +286,11 @@ export async function getCarById(carId) {
       };
     }
 
-    // Check if car is wishlisted by user
+    // Default values for anon users
     let isWishlisted = false;
+    let userTestDrive = null;
+
+    // Check if car is wishlisted by user (only if logged in)
     if (dbUser) {
       const savedCar = await db.userSavedCar.findUnique({
         where: {
@@ -299,28 +302,28 @@ export async function getCarById(carId) {
       });
 
       isWishlisted = !!savedCar;
-    }
 
-    // Check if user has already booked a test drive for this car
-    const existingTestDrive = await db.testDriveBooking.findFirst({
-      where: {
-        carId,
-        userId: dbUser.id,
-        status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+      // Check if user has already booked a test drive for this car
+      const existingTestDrive = await db.testDriveBooking.findFirst({
+        where: {
+          carId,
+          userId: dbUser.id,
+          status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
 
-    let userTestDrive = null;
-
-    if (existingTestDrive) {
-      userTestDrive = {
-        id: existingTestDrive.id,
-        status: existingTestDrive.status,
-        bookingDate: existingTestDrive.bookingDate.toISOString(),
-      };
+      if (existingTestDrive) {
+        userTestDrive = {
+          id: existingTestDrive.id,
+          status: existingTestDrive.status,
+          bookingDate: existingTestDrive.bookingDate
+            ? existingTestDrive.bookingDate.toISOString()
+            : null,
+        };
+      }
     }
 
     // Get dealership info for test drive availability
@@ -330,22 +333,39 @@ export async function getCarById(carId) {
       },
     });
 
+    const serializedCar = serializeCarData(car);
+    // If serializeCarData doesn't accept wishlist flag, attach separately
+    const carWithWishlist = {
+      ...serializedCar,
+      isWishlisted,
+    };
+
     return {
       success: true,
       data: {
-        ...serializeCarData(car, isWishlisted),
+        ...carWithWishlist,
         testDriveInfo: {
           userTestDrive,
           dealership: dealership
             ? {
                 ...dealership,
-                createdAt: dealership.createdAt.toISOString(),
-                updatedAt: dealership.updatedAt.toISOString(),
-                workingHours: dealership.workingHours.map((hour) => ({
-                  ...hour,
-                  createdAt: hour.createdAt.toISOString(),
-                  updatedAt: hour.updatedAt.toISOString(),
-                })),
+                createdAt: dealership.createdAt
+                  ? dealership.createdAt.toISOString()
+                  : null,
+                updatedAt: dealership.updatedAt
+                  ? dealership.updatedAt.toISOString()
+                  : null,
+                workingHours: dealership.workingHours
+                  ? dealership.workingHours.map((hour) => ({
+                      ...hour,
+                      createdAt: hour.createdAt
+                        ? hour.createdAt.toISOString()
+                        : null,
+                      updatedAt: hour.updatedAt
+                        ? hour.updatedAt.toISOString()
+                        : null,
+                    }))
+                  : [],
               }
             : null,
         },
@@ -355,6 +375,7 @@ export async function getCarById(carId) {
     throw new Error("Error fetching car details:" + error.message);
   }
 }
+
 
 /**
  * Get user's saved cars
