@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -47,6 +46,7 @@ import useFetch from "@/hooks/use-fetch";
 import { getCars, deleteCar, updateCarStatus } from "@/actions/cars";
 import { formatCurrency } from "@/lib/helpers";
 import Image from "next/image";
+import { Spinner } from "@/components/ui/spinner";
 
 export const CarsList = () => {
   const router = useRouter();
@@ -162,17 +162,30 @@ export const CarsList = () => {
     }
   };
 
+  const [loading, setLoading] = useState(false);
+
+  const handleClick = () => {
+    setLoading(true);
+    router.push("/admin/cars/create");
+  };
   return (
     <div className="space-y-4">
       {/* Actions and Search */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <Button
           type="button"
-          onClick={() => router.push("/admin/cars/create")}
-          className="flex items-center z-60"
+          onClick={handleClick}
+          disabled={loading}
+          className="flex items-center gap-2 z-60"
         >
-          <Plus className="h-4 w-4" />
-          Add Car
+          {/* Show PLUS only when not loading */}
+          {!loading && <Plus className="h-4 w-4" />}
+
+          {/* Show SPINNER only when loading */}
+          {loading && <Spinner className="h-4 w-4" />}
+
+          {/* Button label */}
+          {loading ? "Loading..." : "Add Car"}
         </Button>
 
         {/* Simple Search Form */}
