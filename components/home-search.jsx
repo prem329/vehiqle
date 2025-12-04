@@ -55,8 +55,8 @@ export function HomeSearch() {
   const onDrop = (acceptedFiles) => {
     const file = acceptedFiles[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image size must be less than 5MB");
+      if (file.size > 15 * 1024 * 1024) {
+        toast.error("Image size must be less than 15MB");
         return;
       }
 
