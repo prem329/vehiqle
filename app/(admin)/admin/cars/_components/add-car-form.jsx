@@ -297,7 +297,7 @@ export const AddCarForm = () => {
         onValueChange={setActiveTab}
         className="mt-6"
       >
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-2 z-60">
           <TabsTrigger value="manual">Manual Entry</TabsTrigger>
           <TabsTrigger value="ai">AI Upload</TabsTrigger>
         </TabsList>

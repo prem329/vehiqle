@@ -51,32 +51,122 @@ async function fileToBase64(file) {
  * into your edge/server code.
  */
 export async function processImageSearch(file) {
-  try {
-    // ----- ARCJET REMOVED -----
-    // If you previously used Arcjet to rate-limit / block requests, implement
-    // a replacement here (recommended approaches below). For now we proceed.
+  /**
+   * Robust server-side handler for image -> Gemini processing.
+   * - Accepts File/Blob (with .arrayBuffer), Buffer, or dataURL (string).
+   * - Validates size/type, converts to base64 safely.
+   * - Returns structured { success: boolean, data?, error? } instead of throwing.
+   *
+   * This helps diagnose iPhone uploads (HEIC, huge images, dataURLs) and avoids
+   * uncaught exceptions bubbling to the client as "unexpected error".
+   */
 
-    // Check if API key is available
+  // helper: convert dataURL to base64 payload (strip prefix)
+  const dataUrlToBase64 = (dataUrl) => {
+    const match = dataUrl.match(/^data:(.+);base64,(.*)$/);
+    if (!match) return null;
+    return { mimeType: match[1], base64: match[2] };
+  };
+
+  // helper: normalize various file types to a base64 string and metadata
+  async function normalizeFileToBase64(input) {
+    // Already a data URL string?
+    if (typeof input === "string") {
+      const parsed = dataUrlToBase64(input);
+      if (!parsed) throw new Error("String provided is not a valid data URL");
+      return { base64: parsed.base64, mimeType: parsed.mimeType, size: Math.ceil((parsed.base64.length * 3) / 4) };
+    }
+
+    // Buffer (Node)
+    if (Buffer.isBuffer(input)) {
+      return { base64: input.toString("base64"), mimeType: "application/octet-stream", size: input.length };
+    }
+
+    // File/Blob-like (has arrayBuffer)
+    if (input && typeof input.arrayBuffer === "function") {
+      const buffer = Buffer.from(await input.arrayBuffer());
+      // Try to get mime type and size from input if available
+      const mimeType = input.type || "application/octet-stream";
+      const size = typeof input.size === "number" ? input.size : buffer.length;
+      return { base64: buffer.toString("base64"), mimeType, size };
+    }
+
+    throw new Error("Unsupported file input type");
+  }
+
+  try {
+    // Basic guard: ensure something was passed
+    if (!file) {
+      return { success: false, error: "No file provided" };
+    }
+
+    // Log basic info for debugging (server logs)
+    try {
+      // best-effort metadata
+      const info = {
+        name: file?.name ?? null,
+        type: file?.type ?? (typeof file === "string" ? "dataurl" : null),
+        size: file?.size ?? (Buffer.isBuffer(file) ? file.length : null),
+      };
+      console.log("[processImageSearch] incoming file:", info);
+    } catch (_) {
+      console.log("[processImageSearch] incoming file: (unable to read metadata)");
+    }
+
+    // Normalize / convert to base64 & get mime/size
+    let normalized;
+    try {
+      normalized = await normalizeFileToBase64(file);
+    } catch (err) {
+      console.error("[processImageSearch] normalizeFileToBase64 error:", err);
+      return { success: false, error: "Failed to read/convert uploaded file: " + err.message };
+    }
+
+    const { base64: base64Image, mimeType, size } = normalized;
+
+    // Validate size (protect serverless / model limits)
+    const MAX_BYTES = 6 * 1024 * 1024; // 6 MB (adjust as needed)
+    if (typeof size === "number" && size > MAX_BYTES) {
+      return { success: false, error: `Image too large. Max ${Math.round(MAX_BYTES / 1024 / 1024)} MB allowed.` };
+    }
+
+    // Validate mime type - only accept common web formats (we convert HEIC client-side)
+    const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowed.includes((mimeType || "").toLowerCase())) {
+      return {
+        success: false,
+        error:
+          `Unsupported image type "${mimeType}". Please upload a JPEG/PNG/WebP image. ` +
+          `If you're uploading from iPhone, make sure the client converts HEIC to JPEG before upload.`,
+      };
+    }
+
+    // Check Gemini key
     if (!process.env.GEMINI_API_KEY) {
-      throw new Error("Gemini API key is not configured");
+      console.error("[processImageSearch] missing GEMINI_API_KEY");
+      return { success: false, error: "AI service not configured" };
     }
 
     // Initialize Gemini API
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    let genAI;
+    try {
+      genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    } catch (err) {
+      console.error("[processImageSearch] GoogleGenerativeAI init failed:", err);
+      return { success: false, error: "Failed to initialize AI client" };
+    }
+
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // Convert image file to base64
-    const base64Image = await fileToBase64(file);
-
-    // Create image part for the model
+    // Build image part
     const imagePart = {
       inlineData: {
         data: base64Image,
-        mimeType: file.type,
+        mimeType,
       },
     };
 
-    // Define the prompt for car search extraction
+    // Prompt (same as before)
     const prompt = `
       Analyze this car image and extract the following information for a search query:
       1. Make (manufacturer)
@@ -95,30 +185,46 @@ export async function processImageSearch(file) {
       Only respond with the JSON object, nothing else.
     `;
 
-    // Get response from Gemini
-    const result = await model.generateContent([imagePart, prompt]);
-    const response = await result.response;
-    const text = response.text();
+    // Call model
+    let result;
+    try {
+      result = await model.generateContent([imagePart, prompt]);
+    } catch (err) {
+      console.error("[processImageSearch] model.generateContent error:", err);
+      return { success: false, error: "AI model call failed: " + (err.message || "unknown") };
+    }
+
+    // Get response text
+    let response;
+    try {
+      response = await result.response;
+    } catch (err) {
+      console.error("[processImageSearch] result.response error:", err);
+      return { success: false, error: "Failed to read AI response" };
+    }
+
+    let text;
+    try {
+      text = response.text();
+    } catch (err) {
+      console.error("[processImageSearch] response.text() error:", err);
+      return { success: false, error: "Failed to extract text from AI response" };
+    }
+
     const cleanedText = text.replace(/```(?:json)?\n?/g, "").trim();
 
-    // Parse the JSON response
+    // Parse JSON
     try {
       const carDetails = JSON.parse(cleanedText);
-
-      // Return success response with data
-      return {
-        success: true,
-        data: carDetails,
-      };
+      return { success: true, data: carDetails };
     } catch (parseError) {
-      console.error("Failed to parse AI response:", parseError);
-      console.log("Raw response:", text);
-      return {
-        success: false,
-        error: "Failed to parse AI response",
-      };
+      console.error("[processImageSearch] Failed to parse AI JSON:", parseError);
+      console.log("[processImageSearch] Raw AI text:", text);
+      return { success: false, error: "Failed to parse AI response as JSON" };
     }
   } catch (error) {
-    throw new Error("AI Search error:" + error.message);
+    // Catch-all: log full error and return structured failure
+    console.error("[processImageSearch] unexpected error:", error);
+    return { success: false, error: "Unexpected server error: " + (error?.message || "unknown") };
   }
 }
