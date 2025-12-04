@@ -202,20 +202,31 @@ export function HomeSearch() {
 
   // Handle image search submissions
   const handleImageSearch = async (e) => {
-    e.preventDefault();
-    if (!searchImage) {
-      toast.error("Please upload an image first");
-      return;
-    }
+  e.preventDefault();
+  if (!searchImage) {
+    toast.error("Please upload an image first");
+    return;
+  }
 
-    try {
-      // processImageFn is from useFetch hook; await it so any errors can be caught
-      await processImageFn(searchImage);
-    } catch (err) {
-      console.error("Image search failed:", err);
-      toast.error(err.message || "Image analysis failed");
-    }
-  };
+  try {
+    // Convert File to base64 before sending
+    const reader = new FileReader();
+    reader.readAsDataURL(searchImage);
+    reader.onloadend = async () => {
+      const base64Image = reader.result; // data:image/jpeg;base64,...
+      
+      // Send the base64 string instead of File object
+      await processImageFn(base64Image);
+    };
+    reader.onerror = (err) => {
+      console.error("FileReader error:", err);
+      toast.error("Failed to read image file");
+    };
+  } catch (err) {
+    console.error("Image search failed:", err);
+    toast.error(err.message || "Image analysis failed");
+  }
+};
 
   return (
     <div>
