@@ -167,8 +167,9 @@ export const CarsList = () => {
       {/* Actions and Search */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <Button
+          type="button"
           onClick={() => router.push("/admin/cars/create")}
-          className="flex items-center"
+          className="flex items-center z-59"
         >
           <Plus className="h-4 w-4" />
           Add Car
@@ -181,7 +182,7 @@ export const CarsList = () => {
             <Input
               type="search"
               placeholder="Search cars..."
-              className="pl-9 w-full sm:w-60"
+              className="pl-9 w-full sm:w-60 z-60"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
